@@ -22,7 +22,7 @@ from threading import Lock
 from bitcoin import Hash, hash_encode
 from transaction import Transaction
 from util import print_error, print_msg
-
+import logging
 
 class WalletSynchronizer():
     '''The synchronizer keeps the wallet up-to-date with its set of
@@ -59,6 +59,17 @@ class WalletSynchronizer():
         return response['params'], response['result']
 
     def is_up_to_date(self):
+        logging.warn("requested_tx")
+        logging.warn(self.requested_tx)
+
+        logging.warn("requested_histories")
+        logging.warn(self.requested_histories)
+
+        logging.warn("requested_addrs")
+        logging.warn(self.requested_addrs)
+
+        logging.warn(not self.requested_addrs)
+        
         return (not self.requested_tx and not self.requested_histories
                 and not self.requested_addrs)
 
@@ -69,6 +80,8 @@ class WalletSynchronizer():
 
     def subscribe_to_addresses(self, addresses):
         if addresses:
+            logging.warn("///////////////subscribe////////////")
+            logging.warn(addresses)
             self.requested_addrs |= addresses
             msgs = map(lambda addr: ('blockchain.address.subscribe', [addr]),
                        addresses)
@@ -176,6 +189,14 @@ class WalletSynchronizer():
             addresses = self.new_addresses
             self.new_addresses = set()
         self.subscribe_to_addresses(addresses)
+
+        logging.warn("///////////////////////")
+        logging.warn("self.is_up_to_date()")
+        logging.warn(self.is_up_to_date())
+
+        logging.warn("///////////////////////")
+        logging.warn("self.wallet.is_up_to_date()")
+        logging.warn(self.wallet.is_up_to_date())
 
         # 3. Detect if situation has changed
         up_to_date = self.is_up_to_date()

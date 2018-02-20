@@ -42,7 +42,7 @@ from synchronizer import WalletSynchronizer
 from mnemonic import Mnemonic
 
 import paymentrequest
-
+import logging
 
 
 # internal ID for imported account
@@ -1084,6 +1084,7 @@ class Abstract_Wallet(object):
     def start_threads(self, network):
         from verifier import SPV
         self.network = network
+        logging.warn(network)
         if self.network is not None:
             self.verifier = SPV(self.network, self)
             self.verifier.start()

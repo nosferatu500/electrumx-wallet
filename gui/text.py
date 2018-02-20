@@ -8,6 +8,7 @@ from electrum.bitcoin import is_valid, COIN
 from electrum import Wallet, WalletStorage
 
 import tty, sys
+import logging
 
 
 class ElectrumGui:

@@ -18,12 +18,7 @@ from collections import deque
 DEFAULT_PORTS = {'t':'50001', 's':'50002', 'h':'8081', 'g':'8082'}
 
 DEFAULT_SERVERS = {
-    'electrum-verge.xyz':{'t':'50001', 's':'50002'},
-    'electrum-xvg.stream':{'t':'50001', 's':'50002'},
-    'electrum-xvg.party':{'t':'50001', 's':'50002'},
-    'e1.verge-electrum.com':{'t':'50001', 's':'50002'},
-    'e2.verge-electrum.com':{'t':'50001', 's':'50002'},
-    'e3.verge-electrum.com':{'t':'50001', 's':'50002'}
+    'localhost':{'t':'50001', 's':'50002'}
 }
 
 NODES_RETRY_INTERVAL = 60

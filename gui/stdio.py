@@ -6,6 +6,7 @@ from electrum.util import format_satoshis, set_verbosity, StoreDict
 from electrum.bitcoin import is_valid, COIN
 from electrum.network import filter_protocol
 import sys, getpass, datetime
+import logging
 
 # minimal fdisk like gui for console usage
 # written by rofl0r, with some bits stolen from the text gui (ncurses)

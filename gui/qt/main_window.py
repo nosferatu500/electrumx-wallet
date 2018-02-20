@@ -54,7 +54,7 @@ from transaction_dialog import show_transaction
 
 
 
-
+import logging
 
 from electrum_xvg import ELECTRUM_VERSION
 import re
@@ -519,7 +519,7 @@ class ElectrumWindow(QMainWindow):
     def update_status(self):
         if not self.wallet:
             return
-
+        
         if self.network is None or not self.network.is_running():
             text = _("Offline")
             icon = QIcon(":icons/status_disconnected.png")
@@ -527,6 +527,7 @@ class ElectrumWindow(QMainWindow):
         elif self.network.is_connected():
             server_height = self.network.get_server_height()
             server_lag = self.network.get_local_height() - server_height
+            
             # Server height can be 0 after switching to a new server
             # until we get a headers subscription request response.
             # Display the synchronizing message in that case.

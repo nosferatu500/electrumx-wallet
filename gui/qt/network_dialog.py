@@ -24,6 +24,7 @@ import os.path, json, ast, traceback
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from electrum_xvg import DEFAULT_PORTS
+import logging
 
 from util import *
 

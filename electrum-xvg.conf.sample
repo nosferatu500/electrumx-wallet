@@ -6,7 +6,7 @@
 # that can be rewritten by the client
 
 [client]
-server = electrum-verge.xyz:50002:t
+server = localhost:50002:t
 proxy = None
 gap_limit = 5
 # booleans use python syntax

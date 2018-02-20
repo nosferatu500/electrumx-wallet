@@ -37,6 +37,8 @@ MONOSPACE_FONT = 'Lucida Console' if platform.system() == 'Windows' else 'monosp
 from electrum.util import format_satoshis, parse_URI
 from electrum.bitcoin import MIN_RELAY_TX_FEE
 
+import logging
+
 def numbify(entry, is_int = False):
     text = entry.get_text().strip()
     chars = '0123456789'
@@ -232,7 +234,6 @@ def run_network_dialog( network, parent ):
         status = "Please choose a server.\nSelect cancel if you are offline."
 
     servers = network.get_servers()
-
     dialog = Gtk.MessageDialog( parent, Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
                                     Gtk.MessageType.QUESTION, Gtk.ButtonsType.OK_CANCEL, status)
     dialog.set_title("Server")
