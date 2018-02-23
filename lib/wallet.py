@@ -424,7 +424,8 @@ class Abstract_Wallet(object):
         with self.lock:
             self.verified_tx[tx_hash] = info  # (tx_height, timestamp, pos)
         self.storage.put('verified_tx3', self.verified_tx, True)
-        self.network.trigger_callback('updated')
+        conf, timestamp = self.get_confirmations(tx_hash)
+        self.network.trigger_callback('verified', (tx_hash, conf, timestamp))
 
     def get_unverified_txs(self):
         '''Returns a list of tuples (tx_hash, height) that are unverified and not beyond local height'''

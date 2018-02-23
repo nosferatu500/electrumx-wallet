@@ -163,10 +163,6 @@ class ElectrumWindow(QMainWindow):
         for i in range(tabs.count()):
             QShortcut(QKeySequence("Alt+" + str(i + 1)), self, lambda i=i: tabs.setCurrentIndex(i))
 
-        self.connect(self, QtCore.SIGNAL('stop'), self.close)
-        self.connect(self, QtCore.SIGNAL('update_status'), self.update_status)
-        self.connect(self, QtCore.SIGNAL('banner_signal'), lambda: self.console.showMessage(self.network.banner) )
-        self.connect(self, QtCore.SIGNAL('transaction_signal'), lambda: self.notify_transactions() )
         self.connect(self, QtCore.SIGNAL('payment_request_ok'), self.payment_request_ok)
         self.connect(self, QtCore.SIGNAL('payment_request_error'), self.payment_request_error)
         self.labelsChanged.connect(self.update_tabs)
@@ -176,11 +172,11 @@ class ElectrumWindow(QMainWindow):
         # network callbacks
         if self.network:
             self.network.register_callback('updated', lambda: self.need_update.set())
-            self.network.register_callback('banner', lambda: self.emit(QtCore.SIGNAL('banner_signal')))
-            self.network.register_callback('status', lambda: self.emit(QtCore.SIGNAL('update_status')))
-            self.network.register_callback('new_transaction', lambda: self.emit(QtCore.SIGNAL('transaction_signal')))
-            self.network.register_callback('stop', lambda: self.emit(QtCore.SIGNAL('stop')))
-
+            self.network.register_callback('new_transaction', self.new_transaction)
+            self.register_callback('status', self.update_status)
+            self.register_callback('close', self.close)
+            self.register_callback('banner', self.console.showMessage)
+            self.register_callback('verified', self.history_list.update_item)
             # set initial message
             self.console.showMessage(self.network.banner)
 
@@ -190,6 +186,16 @@ class ElectrumWindow(QMainWindow):
         self.pluginsdialog = None
         self.fetch_alias()
         self.require_fee_update = False
+        self.tx_notifications = []
+
+    def register_callback(self, name, method):
+        """ run callback in the qt thread """
+        self.connect(self, QtCore.SIGNAL(name), method)
+        self.network.register_callback(name, lambda *params: self.emit(QtCore.SIGNAL(name), *params))
+
+    def new_transaction(self, tx):
+        print "new tx", tx
+        self.tx_notifications.append(tx)
 
     def fetch_alias(self):
         self.alias_info = None
@@ -466,25 +472,24 @@ class ElectrumWindow(QMainWindow):
             return
 
         print_error("Notifying GUI")
-        if len(self.network.pending_transactions_for_notifications) > 0:
+        if len(self.tx_notifications) > 0:
             # Combine the transactions if there are more then three
-            tx_amount = len(self.network.pending_transactions_for_notifications)
+            tx_amount = len(self.tx_notifications)
             if(tx_amount >= 3):
                 total_amount = 0
-                for tx in self.network.pending_transactions_for_notifications:
-                    is_relevant, is_mine, v, fee = self.wallet.get_tx_value(tx)
+                for tx in self.tx_notifications:
+                    is_relevant, is_mine, v, fee = self.wallet.get_wallet_delta(tx)
                     if(v > 0):
                         total_amount += v
 
                 self.notify(_("%(txs)s new transactions received. Total amount received in the new transactions %(amount)s %(unit)s") \
                                 % { 'txs' : tx_amount, 'amount' : self.format_amount(total_amount), 'unit' : self.base_unit()})
-
-                self.network.pending_transactions_for_notifications = []
+                self.tx_notifications = []
             else:
-              for tx in self.network.pending_transactions_for_notifications:
+              for tx in self.tx_notifications:
                   if tx:
-                      self.network.pending_transactions_for_notifications.remove(tx)
-                      is_relevant, is_mine, v, fee = self.wallet.get_tx_value(tx)
+                      self.tx_notifications.remove(tx)
+                      is_relevant, is_mine, v, fee = self.wallet.get_wallet_delta(tx)
                       if(v > 0):
                           self.notify(_("New transaction received. %(amount)s %(unit)s") % { 'amount' : self.format_amount(v), 'unit' : self.base_unit()})
 
@@ -1231,8 +1236,9 @@ class ElectrumWindow(QMainWindow):
         outputs, fee, tx_desc, coins = r
         try:
             tx = self.wallet.make_unsigned_transaction(coins, outputs, self.config, fee)
-            if not tx:
-                raise BaseException(_("Insufficient funds"))
+        except NotEnoughFunds:
+            self.show_message(_("Insufficient funds"))
+            return
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             self.show_message(str(e))
@@ -1855,7 +1861,7 @@ class ElectrumWindow(QMainWindow):
     def do_search(self, t):
         i = self.tabs.currentIndex()
         if i == 0:
-            self.history_list.filter(t, [1, 2, 3])  # Date, Description, Amount
+            self.history_list.filter(t, [2, 3, 4])  # Date, Description, Amount
         elif i == 1:
             self.invoices_list.filter(t, [0, 1, 2, 3]) # Date, Requestor, Description, Amount
         elif i == 2:

@@ -143,12 +143,9 @@ class WalletSynchronizer():
         self.wallet.receive_tx_callback(tx_hash, tx, tx_height)
         self.requested_tx.remove((tx_hash, tx_height))
         self.print_error("received tx:", tx_hash, len(tx.raw))
+        self.network.trigger_callback('new_transaction', (tx,))
         if not self.requested_tx:
             self.network.trigger_callback('updated')
-            # Updated gets called too many times from other places as
-            # well; if we used that signal we get the notification
-            # three times
-            self.network.trigger_callback("new_transaction")
 
     def request_missing_txs(self, hist):
         # "hist" is a list of [tx_hash, tx_height] lists
