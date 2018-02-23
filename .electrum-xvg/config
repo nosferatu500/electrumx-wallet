@@ -6,7 +6,7 @@
     "is_maximized": false, 
     "lite_mode": false, 
     "proxy": null, 
-    "server": "localhost:50002:s", 
+    "server": "localhost:50001:t", 
     "winpos-qt": [
         309, 
         155, 

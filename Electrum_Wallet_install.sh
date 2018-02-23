@@ -21,5 +21,7 @@ chmod 775 electrum-xvg
 
 sudo cp -r .electrum-xvg $HOME
 
+sudo chown -R $USER:$USER $HOME/.electrum-xvg/
+
 
 ./electrum-xvg
