@@ -387,10 +387,10 @@ if __name__ == '__main__':
                         pass
                     sys.argv[i] = pipe_data
                     break
-            else:
-                raise BaseException('Cannot get argument from stdin')
-        elif arg == '?':
-            sys.argv[i] = prompt_password('Enter argument (will not echo):', False)
+                else:
+                    raise BaseException('Cannot get argument from stdin')
+            elif arg == '?':
+                sys.argv[i] = prompt_password('Enter argument (will not echo):', False)
 
     parser = get_parser(run_gui, run_daemon, run_cmdline)
     args = parser.parse_args()
