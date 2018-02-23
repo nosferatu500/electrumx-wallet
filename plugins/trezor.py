@@ -19,7 +19,7 @@ from electrum_xvg.util import print_error
 from electrum_xvg.wallet import pw_decode, bip32_private_derivation, bip32_root
 
 from electrum_xvg_gui.qt.util import *
-from electrum_xvg_gui.qt.main_window import StatusBarButton
+from electrum_xvg_gui.qt.main_window import StatusBarButton, ElectrumWindow
 
 try:
     from trezorlib.client import types
@@ -99,7 +99,8 @@ class Plugin(BasePlugin):
     def load_wallet(self, wallet):
         self.wallet = wallet
         self.trezor_button = StatusBarButton(QIcon(":icons/trezor.png"), _("Trezor"), self.settings_dialog)
-        self.window.statusBar().addPermanentWidget(self.trezor_button)
+        if type(window) is ElectrumWindow:
+            self.window.statusBar().addPermanentWidget(self.trezor_button)
         if self.trezor_is_connected():
             if not self.wallet.check_proper_device():
                 QMessageBox.information(self.window, _('Error'), _("This wallet does not match your Trezor device"), _('OK'))

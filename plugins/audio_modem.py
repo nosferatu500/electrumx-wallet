@@ -38,6 +38,10 @@ class Plugin(BasePlugin):
     def is_available(self):
         return amodem is not None
 
+    @hook
+    def init_qt(self, gui):
+        pass
+
     def requires_settings(self):
         return True
 
