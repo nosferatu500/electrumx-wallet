@@ -482,7 +482,7 @@ class Transaction:
         return self.raw
 
     def __init__(self, raw):
-        self.raw = raw
+        self.raw = raw.strip() if raw else None
         self.inputs = None
 
     def update(self, raw):

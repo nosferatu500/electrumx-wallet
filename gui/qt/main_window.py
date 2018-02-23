@@ -194,7 +194,6 @@ class ElectrumWindow(QMainWindow):
         self.network.register_callback(name, lambda *params: self.emit(QtCore.SIGNAL(name), *params))
 
     def new_transaction(self, tx):
-        print "new tx", tx
         self.tx_notifications.append(tx)
 
     def fetch_alias(self):
@@ -403,6 +402,7 @@ class ElectrumWindow(QMainWindow):
         self.recently_visited_menu = file_menu.addMenu(_("&Recently open"))
         file_menu.addAction(_("&Open"), self.open_wallet).setShortcut(QKeySequence.Open)
         file_menu.addAction(_("&New/Restore"), self.new_wallet).setShortcut(QKeySequence.New)
+        file_menu.addAction(_("&Save Copy"), self.backup_wallet).setShortcut(QKeySequence.SaveAs)
         file_menu.addSeparator()
         file_menu.addAction(_("&Quit"), self.close)
         self.update_recently_visited()
@@ -2258,7 +2258,7 @@ class ElectrumWindow(QMainWindow):
         tx = self.tx_from_text(data)
         if not tx:
             return
-        self.show_transaction(tx, prompt_if_unsaved=True)
+        self.show_transaction(tx)
 
 
     def read_tx_from_file(self):
@@ -2280,7 +2280,7 @@ class ElectrumWindow(QMainWindow):
             return
         tx = self.tx_from_text(text)
         if tx:
-            self.show_transaction(tx, prompt_if_unsaved=True)
+            self.show_transaction(tx)
 
     def do_process_from_file(self):
         tx = self.read_tx_from_file()
