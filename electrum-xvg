@@ -378,15 +378,15 @@ if __name__ == '__main__':
         sys.argv.append('-h')
 
         for i, arg in enumerate(sys.argv):
-        if arg == '-':
-            if not sys.stdin.isatty():
-                pipe_data = sys.stdin.read()
-                try:
-                    pipe_data = json.loads(pipe_data)
-                except:
-                    pass
-                sys.argv[i] = pipe_data
-                break
+            if arg == '-':
+                if not sys.stdin.isatty():
+                    pipe_data = sys.stdin.read()
+                    try:
+                        pipe_data = json.loads(pipe_data)
+                    except:
+                        pass
+                    sys.argv[i] = pipe_data
+                    break
             else:
                 raise BaseException('Cannot get argument from stdin')
         elif arg == '?':
