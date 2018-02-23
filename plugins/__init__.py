@@ -29,11 +29,11 @@ descriptions = [
     },
     {
         'name': 'btchipwallet',
-        'fullname': _('BTChip Wallet'),
-        'description': _('Provides support for BTChip hardware wallet') + '\n\n' + _('Requires github.com/btchip/btchip-python'),
+        'fullname': _('Ledger Wallet'),
+        'description': _('Provides support for Ledger hardware wallet') + '\n\n' + _('Requires github.com/ledgerhq/btchip-python'),
         'requires': ['btchip'],
         'requires_wallet_type': ['btchip'],
-        'registers_wallet_type': True
+        'registers_wallet_type': ('hardware', 'btchip', _("Ledger wallet")),
     },
     {
         'name': 'cosigner_pool',
@@ -71,6 +71,16 @@ descriptions = [
         ]),
         'requires': ['matplotlib'],
         'GUI': ['qt']
+    },
+    {
+        'name':'keepkey',
+        'fullname': 'KeepKey',
+        'description': _('Provides support for KeepKey hardware wallet'),
+        'available_for': ['qt'],
+        'requires': [('keepkeylib','github.com/keepkey/python-keepkey')],
+        'requires_wallet_type': ['keepkey'],
+        'registers_wallet_type': ('hardware', 'keepkey', _("KeepKey wallet")),
+        'available_for': ['qt', 'cmdline'],
     },
     {
         'name':'trezor',

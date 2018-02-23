@@ -581,6 +581,11 @@ class Commands:
         return self._format_request(req)
 
     @command('wp')
+    def getmasterprivate(self):
+        """Get master private key. Return your wallet\'s master private key"""
+        return str(self.wallet.get_master_private_key(self.wallet.root_name, self.password))
+
+    @command('wp')
     def signrequest(self, address):
         "Sign payment request with an OpenAlias"
         alias = self.config.get('alias')
