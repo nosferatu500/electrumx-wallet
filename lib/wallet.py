@@ -878,6 +878,7 @@ class Abstract_Wallet(object):
         # this method can be overloaded
         return tx.get_fee()
 
+    @profiler
     def estimated_fee(self, tx, fee_per_kb):
         estimated_size = len(tx.serialize(-1))/2
         fee = int(fee_per_kb*estimated_size/1000.)
@@ -893,17 +894,18 @@ class Abstract_Wallet(object):
 
         fee_per_kb = self.fee_per_kb(config)
         amount = sum(map(lambda x:x[2], outputs))
-        total = fee = 0
+        total = 0
         inputs = []
         tx = Transaction.from_io(inputs, outputs)
-        # add old inputs first
+        fee = fixed_fee if fixed_fee is not None else 0
+        # add inputs, sorted by age
         for item in coins:
             v = item.get('value')
             total += v
             self.add_input_info(item)
             tx.add_input(item)
             # no need to estimate fee until we have reached desired amount
-            if total < amount:
+            if total < amount + fee:
                 continue
             fee = fixed_fee if fixed_fee is not None else self.estimated_fee(tx, fee_per_kb)
             if total >= amount + fee:
@@ -911,13 +913,25 @@ class Abstract_Wallet(object):
         else:
             raise NotEnoughFunds()
         # remove unneeded inputs
+        removed = False
         for item in sorted(tx.inputs, key=itemgetter('value')):
             v = item.get('value')
             if total - v >= amount + fee:
                 tx.inputs.remove(item)
                 total -= v
-                fee = fixed_fee if fixed_fee is not None else self.estimated_fee(tx, fee_per_kb)
+                removed = True
+                continue
             else:
+                break
+        if removed:
+            fee = fixed_fee if fixed_fee is not None else self.estimated_fee(tx, fee_per_kb)
+            for item in sorted(tx.inputs, key=itemgetter('value')):
+                v = item.get('value')
+                if total - v >= amount + fee:
+                    tx.inputs.remove(item)
+                    total -= v
+                    fee = fixed_fee if fixed_fee is not None else self.estimated_fee(tx, fee_per_kb)
+                    continue
                 break
         print_error("using %d inputs"%len(tx.inputs))
 
