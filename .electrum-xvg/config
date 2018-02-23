@@ -1,0 +1,16 @@
+{
+    "auto_connect": false, 
+    "console-history": [], 
+    "gui_show_history": false, 
+    "gui_show_receiving": false, 
+    "is_maximized": false, 
+    "lite_mode": false, 
+    "proxy": null, 
+    "server": "localhost:50002:s", 
+    "winpos-qt": [
+        309, 
+        155, 
+        840, 
+        454
+    ]
+}
