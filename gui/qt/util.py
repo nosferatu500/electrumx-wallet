@@ -18,7 +18,9 @@ else:
 
 GREEN_BG = "QWidget {background-color:#80ff80;}"
 RED_BG = "QWidget {background-color:#ffcccc;}"
-
+RED_FG = "QWidget {color:red;}"
+BLUE_FG = "QWidget {color:blue;}"
+BLACK_FG = "QWidget {color:black;}"
 
 class WaitingDialog(QThread):
     def __init__(self, parent, message, run_task, on_success=None, on_complete=None):

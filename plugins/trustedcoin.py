@@ -228,9 +228,6 @@ class Plugin(BasePlugin):
             return True
         return False
 
-    def requires_settings(self):
-        return True
-
     def set_enabled(self, enabled):
         self.wallet.storage.put('use_' + self.name, enabled)
 
@@ -329,7 +326,7 @@ class Plugin(BasePlugin):
     def load_wallet(self, wallet, window):
         self.wallet = wallet
         self.window = window
-        self.trustedcoin_button = StatusBarButton( QIcon(":icons/trustedcoin.png"), _("Network"), self.settings_dialog)
+        self.trustedcoin_button = StatusBarButton(QIcon(":icons/trustedcoin.png"), _("TrustedCoin"), self.settings_dialog)
         self.window.statusBar().addPermanentWidget(self.trustedcoin_button)
         self.xpub = self.wallet.master_public_keys.get('x1/')
         self.user_id = self.get_user_id()[1]
@@ -537,9 +534,6 @@ class Plugin(BasePlugin):
         if not d.exec_():
             return
         return pw.get_amount()
-
-    def settings_widget(self, window):
-        return EnterButton(_('Settings'), self.settings_dialog)
 
     def settings_dialog(self):
         self.waiting_dialog = WaitingDialog(self.window, 'please wait...', self.request_billing_info, self.show_settings_dialog)

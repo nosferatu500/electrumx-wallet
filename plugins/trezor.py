@@ -19,6 +19,7 @@ from electrum_xvg.util import print_error
 from electrum_xvg.wallet import pw_decode, bip32_private_derivation, bip32_root
 
 from electrum_xvg_gui.qt.util import *
+from electrum_xvg_gui.qt.main_window import StatusBarButton
 
 try:
     from trezorlib.client import types
@@ -44,7 +45,6 @@ class Plugin(BasePlugin):
     def __init__(self, config, name):
         BasePlugin.__init__(self, config, name)
         self._is_available = self._init()
-        self._requires_settings = True
         self.wallet = None
 
     def get_wallet_type(self):
@@ -61,9 +61,6 @@ class Plugin(BasePlugin):
         if self.wallet.storage.get('wallet_type') != 'trezor':
             return False
         return True
-
-    def requires_settings(self):
-        return self._requires_settings
 
     def set_enabled(self, enabled):
         self.wallet.storage.put('use_' + self.name, enabled)
@@ -101,6 +98,8 @@ class Plugin(BasePlugin):
     @hook
     def load_wallet(self, wallet):
         self.wallet = wallet
+        self.trezor_button = StatusBarButton(QIcon(":icons/trezor.png"), _("Trezor"), self.settings_dialog)
+        self.window.statusBar().addPermanentWidget(self.trezor_button)
         if self.trezor_is_connected():
             if not self.wallet.check_proper_device():
                 QMessageBox.information(self.window, _('Error'), _("This wallet does not match your Trezor device"), _('OK'))
@@ -134,10 +133,12 @@ class Plugin(BasePlugin):
         if not self.wallet.is_watching_only() and self.wallet.atleast_version(1, 3) and len(addrs) == 1:
             menu.addAction(_("Show on TREZOR"), lambda: self.wallet.show_address(addrs[0]))
 
-    def settings_widget(self, window):
-        return EnterButton(_('Settings'), self.settings_dialog)
-
     def settings_dialog(self):
+        try:
+            device_id = self.get_client().get_device_id()
+        except BaseException as e:
+            self.window.show_message(str(e))
+            return
         get_label = lambda: self.wallet.get_client().features.label
         update_label = lambda: current_label_label.setText("Label: %s" % get_label())
 
@@ -145,7 +146,7 @@ class Plugin(BasePlugin):
         layout = QGridLayout(d)
         layout.addWidget(QLabel("Trezor Options"),0,0)
         layout.addWidget(QLabel("ID:"),1,0)
-        layout.addWidget(QLabel(" %s" % self.wallet.get_client().get_device_id()),1,1)
+        layout.addWidget(QLabel(" %s" % device_id),1,1)
 
         def modify_label():
             response = QInputDialog().getText(None, "Set New Trezor Label", "New Trezor Label:  (upon submission confirm on Trezor)")
@@ -163,11 +164,6 @@ class Plugin(BasePlugin):
         change_label_button.clicked.connect(modify_label)
         layout.addWidget(current_label_label,3,0)
         layout.addWidget(change_label_button,3,1)
-
-        if d.exec_():
-            return True
-        else:
-            return False
 
 
 

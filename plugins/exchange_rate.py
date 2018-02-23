@@ -500,6 +500,7 @@ class Plugin(BasePlugin):
 
     def connect_fields(self, btc_e, fiat_e, fee_e):
         def fiat_changed():
+            fiat_e.setStyleSheet(BLACK_FG)
             try:
                 fiat_amount = Decimal(str(fiat_e.text()))
             except:
@@ -510,9 +511,11 @@ class Plugin(BasePlugin):
             if exchange_rate is not None:
                 btc_amount = fiat_amount/exchange_rate
                 btc_e.setAmount(int(btc_amount*Decimal(100000000)))
+                btc_e.setStyleSheet(BLUE_FG)
                 if fee_e: self.win.update_fee(False)
         fiat_e.textEdited.connect(fiat_changed)
         def btc_changed():
+            btc_e.setStyleSheet(BLACK_FG)
             if self.exchanger is None:
                 return
             btc_amount = btc_e.get_amount()
@@ -524,4 +527,9 @@ class Plugin(BasePlugin):
                 pos = fiat_e.cursorPosition()
                 fiat_e.setText("%.2f"%fiat_amount)
                 fiat_e.setCursorPosition(pos)
+                fiat_e.setStyleSheet(BLUE_FG)
         btc_e.textEdited.connect(btc_changed)
+
+    @hook
+    def do_clear(self):
+        self.send_fiat_e.setText('')
