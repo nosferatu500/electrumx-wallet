@@ -225,7 +225,8 @@ class Network(util.DaemonThread):
             self.interface.send_request({'method':'blockchain.address.subscribe','params':[addr]})
         self.interface.send_request({'method':'server.banner','params':[]})
         self.interface.send_request({'method':'server.peers.subscribe','params':[]})
-        self.interface.send_request({'method':'blockchain.estimatefee','params':[2]})
+        # TODO: This param freeze wallet if network Dialog is open
+        # self.interface.send_request({'method':'blockchain.estimatefee','params':[2]})
 
     def get_status_value(self, key):
         if key == 'status':
