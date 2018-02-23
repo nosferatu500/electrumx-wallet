@@ -22,6 +22,8 @@ from electrum.util import print_error, print_msg
 from electrum.wallet import pw_decode, bip32_private_derivation, bip32_root
 
 from electrum_gui.qt.util import *
+from electrum_gui.qt.main_window import StatusBarButton, ElectrumWindow
+from electrum_gui.qt.installwizard import InstallWizard
 
 try:
     from keepkeylib.client import types
@@ -49,7 +51,6 @@ class Plugin(BasePlugin):
     def __init__(self, config, name):
         BasePlugin.__init__(self, config, name)
         self._is_available = self._init()
-        self._requires_settings = True
         self.wallet = None
         self.handler = None
         self.client = None
@@ -69,9 +70,6 @@ class Plugin(BasePlugin):
         if self.wallet.storage.get('wallet_type') != 'keepkey':
             return False
         return True
-
-    def requires_settings(self):
-        return self._requires_settings
 
     def set_enabled(self, enabled):
         self.wallet.storage.put('use_' + self.name, enabled)
@@ -132,9 +130,12 @@ class Plugin(BasePlugin):
         self.wallet = wallet
         self.window = window
         self.wallet.plugin = self
+        self.keepkey_button = StatusBarButton(QIcon(":icons/keepkey.png"), _("KeepKey"), self.settings_dialog)
+        if type(window) is ElectrumWindow:
+          self.window.statusBar().addPermanentWidget(self.keepkey_button)
 
         if self.handler is None:
-            self.handler = KeepKeyQtHandler(self.window.app)
+            self.handler = KeepKeyQtHandler(self.window)
 
         try:
             self.get_client().ping('t')
@@ -150,6 +151,11 @@ class Plugin(BasePlugin):
     @hook
     def installwizard_load_wallet(self, wallet, window):
         self.load_wallet(wallet, window)
+
+    @hook
+    def close_wallet(self):
+        if type(self.window) is ElectrumWindow:
+            self.window.statusBar().removeWidget(self.keepkey_button)
 
     @hook
     def installwizard_restore(self, wizard, storage):
@@ -175,7 +181,7 @@ class Plugin(BasePlugin):
     @hook
     def receive_menu(self, menu, addrs):
         if not self.wallet.is_watching_only() and self.atleast_version(1, 3) and len(addrs) == 1:
-            menu.addAction(_("Show on KeepKey"), lambda: self.show_address(addrs[0]))
+            menu.addAction(_("Show on TREZOR"), lambda: self.show_address(addrs[0]))
 
     def show_address(self, address):
         if not self.wallet.check_proper_device():
@@ -192,10 +198,12 @@ class Plugin(BasePlugin):
         finally:
             self.handler.stop()
 
-    def settings_widget(self, window):
-        return EnterButton(_('Settings'), self.settings_dialog)
-
     def settings_dialog(self):
+        try:
+            device_id = self.get_client().get_device_id()
+        except BaseException as e:
+            self.window.show_message(str(e))
+            return
         get_label = lambda: self.get_client().features.label
         update_label = lambda: current_label_label.setText("Label: %s" % get_label())
 
@@ -221,11 +229,8 @@ class Plugin(BasePlugin):
         change_label_button.clicked.connect(modify_label)
         layout.addWidget(current_label_label,3,0)
         layout.addWidget(change_label_button,3,1)
-
-        if d.exec_():
-            return True
-        else:
-            return False
+        d.exec_()
+        
 
     def sign_transaction(self, tx, prev_tx, xpub_path):
         self.prev_tx = prev_tx
@@ -624,18 +629,21 @@ class KeepKeyQtHandler:
         self.done.set()
 
     def passphrase_dialog(self):
-        from electrum_gui.qt.password_dialog import make_password_dialog, run_password_dialog
-        d = QDialog()
-        d.setModal(1)
-        d.setLayout(make_password_dialog(d, None, self.message, False))
-        confirmed, p, passphrase = run_password_dialog(d, None, None)
-        if not confirmed:
-            QMessageBox.critical(None, _('Error'), _("Password request canceled"), _('OK'))
-            self.passphrase = None
+        if type(self.win) is ElectrumWindow:
+            passphrase = self.win.password_dialog(_("Please enter your KeepKey passphrase"))
+            self.passphrase = unicodedata.normalize('NFKD', unicode(passphrase)) if passphrase else ''
         else:
-            if passphrase is None:
-                passphrase = '' # Even blank string is valid KeepKey passphrase
-            self.passphrase = unicodedata.normalize('NFKD', unicode(passphrase))
+            assert type(self.win) is InstallWizard
+            from electrum_gui.qt.password_dialog import make_password_dialog, run_password_dialog
+            d = QDialog()
+            d.setModal(1)
+            d.setLayout(make_password_dialog(d, None, self.message, False))
+            confirmed, p, passphrase = run_password_dialog(d, None, None)
+            if not confirmed:
+                QMessageBox.critical(None, _('Error'), _("Password request canceled"), _('OK'))
+                self.passphrase = None
+            else:
+                self.passphrase = unicodedata.normalize('NFKD', unicode(passphrase)) if passphrase else ''
         self.done.set()
 
     def message_dialog(self):

@@ -20,6 +20,7 @@
     <file>icons/status_connected.png</file>
     <file>icons/status_disconnected.png</file>
     <file>icons/status_waiting.png</file>
+    <file>icons/keepkey.png</file>
     <file>icons/status_lagging.png</file>
     <file>icons/switchgui.png</file>
     <file>icons/trezor.png</file>
