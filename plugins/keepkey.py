@@ -285,13 +285,12 @@ class Plugin(BasePlugin):
                         )
                         # find which key is mine
                         for x_pubkey in x_pubkeys:
-                            xpub, s = BIP32_Account.parse_xpubkey(x_pubkey)
-                            if xpub in self.xpub_path:
-                                xpub_n = self.get_client().expand_path(self.xpub_path[xpub])
-                                txinputtype.address_n.extend(xpub_n + s)
-                                break
-                            else:
-                                raise
+                            if is_extended_pubkey(x_pubkey):
+                                xpub, s = BIP32_Account.parse_xpubkey(x_pubkey)
+                                if xpub in self.xpub_path:
+                                    xpub_n = self.get_client().expand_path(self.xpub_path[xpub])
+                                    txinputtype.address_n.extend(xpub_n + s)
+                                    break
 
                 prev_hash = unhexlify(txin['prevout_hash'])
                 prev_index = txin['prevout_n']
@@ -485,6 +484,7 @@ class KeepKeyWallet(BIP32_HD_Wallet):
             prev_tx[tx_hash] = ptx
 
             for x_pubkey in txin['x_pubkeys']:
+                account_derivation = None
                 if not is_extended_pubkey(x_pubkey):
                     continue
                 xpub = x_to_xpub(x_pubkey)
@@ -492,7 +492,8 @@ class KeepKeyWallet(BIP32_HD_Wallet):
                     if v == xpub:
                         account_id = re.match("x/(\d+)'", k).group(1)
                         account_derivation = "44'/0'/%s'"%account_id
-                xpub_path[xpub] = account_derivation
+                if account_derivation is not None:
+                    xpub_path[xpub] = account_derivation
 
         self.plugin.sign_transaction(tx, prev_tx, xpub_path)
 
