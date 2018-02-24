@@ -269,7 +269,7 @@ class ElectrumGui:
         self.show_message(repr(c))
         pass
 
-    def main(self,url):
+    def main(self):
 
         tty.setraw(sys.stdin)
         while self.tab != -1:

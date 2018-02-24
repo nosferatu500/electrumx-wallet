@@ -112,7 +112,7 @@ class Plugin(BasePlugin):
 
     @hook
     def installwizard_restore(self, wizard, storage):
-        if storage.get('wallet_type') != 'trezor': 
+        if storage.get('wallet_type') != 'trezor':
             return
         seed = wizard.enter_seed_dialog("Enter your Trezor seed", None, func=lambda x:True)
         if not seed:

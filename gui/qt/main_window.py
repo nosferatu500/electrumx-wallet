@@ -117,8 +117,6 @@ class ElectrumWindow(QMainWindow):
 
         self.gui_object = gui_object
         self.tray = gui_object.tray
-        self.go_lite = gui_object.go_lite
-        self.lite = None
         self.app = gui_object.app
 
         self.invoices = InvoiceStore(self.config)
@@ -1898,9 +1896,6 @@ class ElectrumWindow(QMainWindow):
         self.search_box.hide()
         sb.addPermanentWidget(self.search_box)
 
-        if (int(qtVersion[0]) >= 4 and int(qtVersion[2]) >= 7):
-            sb.addPermanentWidget( StatusBarButton( QIcon(":icons/switchgui.png"), _("Switch to Lite Mode"), self.go_lite ) )
-
         self.lock_icon = QIcon()
         self.password_button = StatusBarButton( self.lock_icon, _("Password"), self.change_password_dialog )
         sb.addPermanentWidget( self.password_button )
@@ -2359,7 +2354,7 @@ class ElectrumWindow(QMainWindow):
         txid, ok = QInputDialog.getText(self, _('Lookup transaction'), _('Transaction ID') + ':')
         if ok and txid:
             try:
-                r = self.network.synchronous_get([('blockchain.transaction.get',[str(txid)])])[0]
+                r = self.network.synchronous_get(('blockchain.transaction.get',[str(txid)]))
             except BaseException as e:
                 self.show_message(str(e))
                 return
