@@ -30,9 +30,10 @@ class SPV(ThreadJob):
         self.merkle_roots    = {}                                  # hashed by me
 
     def run(self):
+        lh = self.wallet.get_local_height()
         unverified = self.wallet.get_unverified_txs()
-        for (tx_hash, tx_height) in unverified:
-            if tx_hash not in self.merkle_roots:
+        for tx_hash, tx_height in unverified.items():
+            if tx_hash not in self.merkle_roots and tx_height <= lh:
                 request = ('blockchain.transaction.get_merkle',
                            [tx_hash, tx_height])
                 if self.network.send([request], self.merkle_response):

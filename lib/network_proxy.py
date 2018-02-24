@@ -16,16 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+import traceback
 import threading
 import Queue
 
 import util
-from network import Network
-from util import print_error
 from simple_config import SimpleConfig
-from network import serialize_proxy, serialize_server
-
-
+from network import Network, serialize_proxy, serialize_server
 
 class NetworkProxy(util.DaemonThread):
 
@@ -72,7 +70,10 @@ class NetworkProxy(util.DaemonThread):
                 continue
             if response is None:
                 break
-            self.process(response)
+            try:
+                self.process(response)
+            except:
+                traceback.print_exc(file=sys.stderr)
         self.trigger_callback('stop')
         if self.network:
             self.network.stop()
@@ -80,7 +81,7 @@ class NetworkProxy(util.DaemonThread):
 
     def process(self, response):
         if self.debug:
-            print_error("<--", response)
+            self.print_error("<--", response)
 
         if response.get('method') == 'network.status':
             key, value = response.get('params')
@@ -117,7 +118,7 @@ class NetworkProxy(util.DaemonThread):
                         callback = k
                         break
                 else:
-                    print_error( "received unexpected notification", method, params)
+                    self.print_error( "received unexpected notification", method, params)
                     return
 
 
@@ -152,7 +153,7 @@ class NetworkProxy(util.DaemonThread):
                 ids.append(self.message_id)
                 requests.append(request)
                 if self.debug:
-                    print_error("-->", request)
+                    self.print_error("-->", request)
                 self.message_id += 1
 
             self.pipe.send_all(requests)

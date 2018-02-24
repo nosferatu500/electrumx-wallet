@@ -1018,6 +1018,7 @@ class ElectrumWindow(QMainWindow):
         self.from_label = QLabel(_('From'))
         grid.addWidget(self.from_label, 3, 0)
         self.from_list = MyTreeWidget(self, self.from_list_menu, ['',''])
+        self.from_list.setSortingEnabled(False)
         self.from_list.setHeaderHidden(True)
         self.from_list.setMaximumHeight(80)
         grid.addWidget(self.from_list, 3, 1, 1, 3)
@@ -1292,7 +1293,11 @@ class ElectrumWindow(QMainWindow):
         else:
             confirm_fee = self.config.get('confirm_fee', 1000000)
             if fee >= confirm_fee:
-                if not self.question(_("The fee for this transaction seems unusually high.\nAre you really sure you want to pay %(fee)s in fees?")%{ 'fee' : self.format_amount(fee) + ' '+ self.base_unit()}):
+                msg = '\n'.join([
+                    _("The fee for this transaction seems unusually high."),
+                    _("Are you really sure you want to pay %(fee)s in fees?")%{ 'fee' : self.format_amount(fee) + ' '+ self.base_unit()}
+                ])
+                if not self.question(msg):
                     return
 
         if self.show_before_broadcast():

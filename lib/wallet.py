@@ -416,11 +416,11 @@ class Abstract_Wallet(object):
         return decrypted
 
     def add_unverified_tx(self, tx_hash, tx_height):
-        if tx_height > 0:
-            with self.lock:
-                self.unverified_tx[tx_hash] = tx_height
+         if tx_height > 0 and tx_hash not in self.verified_tx:
+            self.unverified_tx[tx_hash] = tx_height
 
     def add_verified_tx(self, tx_hash, info):
+        self.unverified_tx.pop(tx_hash, None)
         with self.lock:
             self.verified_tx[tx_hash] = info  # (tx_height, timestamp, pos)
         self.storage.put('verified_tx3', self.verified_tx, True)
@@ -428,14 +428,7 @@ class Abstract_Wallet(object):
         self.network.trigger_callback('verified', (tx_hash, conf, timestamp))
 
     def get_unverified_txs(self):
-        '''Returns a list of tuples (tx_hash, height) that are unverified and not beyond local height'''
-        txs = []
-        with self.lock:
-            for tx_hash, tx_height in self.unverified_tx.items():
-                # do not request merkle branch before headers are available
-                if tx_hash not in self.verified_tx and tx_height <= self.get_local_height():
-                    txs.append((tx_hash, tx_height))
-        return txs
+        return self.unverified_tx
 
     def undo_verifications(self, height):
         '''Used by the verifier when a reorg has happened'''
@@ -472,7 +465,7 @@ class Abstract_Wallet(object):
         "return position, even if the tx is unverified"
         with self.lock:
             x = self.verified_tx.get(tx_hash)
-            y = self.unverified_tx.get(tx_hash)
+        y = self.unverified_tx.get(tx_hash)
         if x:
             height, timestamp, pos = x
             return height, pos
@@ -1023,7 +1016,10 @@ class Abstract_Wallet(object):
                 keypairs[x] = sec
         if keypairs:
             tx.sign(keypairs)
+        tx.error = None
         run_hook('sign_transaction', tx, password)
+        if tx.error:
+            raise BaseException(tx.error)
 
     def sendtx(self, tx):
         # synchronous
