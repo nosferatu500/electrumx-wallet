@@ -65,9 +65,9 @@ class CosignWidget(QWidget):
 
 class InstallWizard(QDialog):
 
-    def __init__(self, config, network, storage, parent):
-        QDialog.__init__(self, parent)
-        self.app = parent.app
+    def __init__(self, config, network, storage, app):
+        QDialog.__init__(self)
+        self.app = app
         self.config = config
         self.network = network
         self.storage = storage
@@ -431,7 +431,17 @@ class InstallWizard(QDialog):
                 if not wallet_type:
                     return
             elif wallet_type == 'hardware':
-                hardware_wallets = map(lambda x:(x[1],x[2]), filter(lambda x:x[0]=='hardware', electrum.wallet.wallet_types))
+                hardware_wallets = []
+                for item in electrum_xvg.wallet.wallet_types:
+                    t, name, description, loader = item
+                    if t == 'hardware':
+                        try:
+                            p = loader()
+                        except:
+                            util.print_error("cannot load plugin for:", name)
+                            continue
+                        if p:
+                            hardware_wallets.append((name, description))
                 wallet_type = self.choice(_("Hardware Wallet"), 'Select your hardware wallet', hardware_wallets)
                 if not wallet_type:
                     return

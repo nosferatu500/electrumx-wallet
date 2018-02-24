@@ -17,12 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import time
-import datetime
-import re
-import threading
-import os.path, json, ast, traceback
-import shutil
+import os.path
 import signal
 import importlib
 
@@ -36,10 +31,8 @@ from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
 from electrum_xvg.i18n import _, set_language
-from electrum_xvg.util import print_error, print_msg
-from electrum_xvg.plugins import run_hook, always_hook
-from electrum_xvg import WalletStorage, Wallet
-from electrum_xvg.bitcoin import MIN_RELAY_TX_FEE
+from electrum_xvg.plugins import run_hook
+from electrum_xvg import SimpleConfig, Wallet, WalletStorage
 
 try:
     import icons_rc
@@ -74,62 +67,175 @@ class ElectrumGui:
         self.app = QApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
         self.timer = Timer()
+
+        self.dark_icon = self.config.get("dark_icon", False)
+        self.tray = QSystemTrayIcon(self.tray_icon(), None)
+        self.tray.setToolTip('Electrum')
+        self.tray.activated.connect(self.tray_activated)
+        self.build_tray_menu()
+        self.tray.show()
+
         self.app.connect(self.app, QtCore.SIGNAL('new_window'), self.start_new_window)
 
     def build_tray_menu(self):
+        self.old_menu = self.tray.contextMenu()
         m = QMenu()
-        m.addAction(_("Show/Hide"), self.show_or_hide)
+        for window in self.windows:
+            submenu = m.addMenu(window.wallet.basename())
+            submenu.addAction(_("Show/Hide"), window.show_or_hide)
+            submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
         m.addAction(_("Exit Electrum-XVG"), self.close)
         self.tray.setContextMenu(m)
 
+    def tray_icon(self):
+        if self.dark_icon:
+            return QIcon(':icons/electrum_dark_icon.png')
+        else:
+            return QIcon(':icons/electrum_light_icon.png')
+
     def toggle_tray_icon(self):
         self.dark_icon = not self.dark_icon
         self.config.set_key("dark_icon", self.dark_icon, True)
-        icon = QIcon(":icons/electrum_dark_icon.png") if self.dark_icon else QIcon(':icons/electrum_light_icon.png')
-        self.tray.setIcon(icon)
-
-    def show_or_hide(self):
-        self.tray_activated(QSystemTrayIcon.DoubleClick)
+        self.tray.setIcon(self.tray_icon())
 
     def tray_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
-            if self.current_window.isMinimized() or self.current_window.isHidden():
-                self.current_window.show()
-                self.current_window.raise_()
+            if all([w.is_hidden() for w in self.windows]):
+                for w in self.windows:
+                    w.bring_to_top()
             else:
-                self.current_window.hide()
+                for w in self.windows:
+                    w.hide()
 
     def close(self):
-        self.current_window.close()
+        for window in self.windows:
+            window.close()
 
-    def new_window(self, config):
-        self.app.emit(SIGNAL('new_window'), config)
+    def run_wizard(self, storage, action):
+        import installwizard
+        if storage.file_exists and action != 'new':
+            msg = _("The file '%s' contains an incompletely created wallet.")%storage.path + '\n'\
+                  + _("Do you want to complete its creation now?")
+            if not self.question(msg):
+                if self.question(_("Do you want to delete '%s'?")%storage.path):
+                    os.remove(storage.path)
+                    QMessageBox.information(self, _('Warning'), _('The file was removed'), _('OK'))
+                    return
+                return
+        wizard = installwizard.InstallWizard(self.config, self.network, storage, self)
+        wizard.show()
+        if action == 'new':
+            action, wallet_type = wizard.restore_or_create()
+        else:
+            wallet_type = None
+        try:
+            wallet = wizard.run(action, wallet_type)
+        except BaseException as e:
+            traceback.print_exc(file=sys.stdout)
+            QMessageBox.information(None, _('Error'), str(e), _('OK'))
+            return
+        return wallet
 
-    def load_wallet_file(self, path):
+    def load_wallet_file(self, filename):
+        try:
+            storage = WalletStorage(filename)
+        except Exception as e:
+            QMessageBox.information(None, _('Error'), str(e), _('OK'))
+            return
+        if not storage.file_exists:
+            recent = self.config.get('recently_open', [])
+            if filename in recent:
+                recent.remove(filename)
+                self.config.set_key('recently_open', recent)
+            action = 'new'
+        else:
+            try:
+                wallet = Wallet(storage)
+            except BaseException as e:
+                traceback.print_exc(file=sys.stdout)
+                QMessageBox.warning(None, _('Warning'), str(e), _('OK'))
+                return
+            action = wallet.get_action()
+        # run wizard
+        if action is not None:
+            wallet = self.run_wizard(storage, action)
+            # keep current wallet
+            if not wallet:
+                return
+        else:
+            wallet.start_threads(self.network)
+
+        return wallet
+
+    def get_wallet_folder(self):
+        #return os.path.dirname(os.path.abspath(self.wallet.storage.path if self.wallet else self.wallet.storage.path))
+        return os.path.dirname(os.path.abspath(self.config.get_wallet_path()))
+
+    def new_wallet(self):
+        import installwizard
+        wallet_folder = self.get_wallet_folder()
+        i = 1
+        while True:
+            filename = "wallet_%d"%i
+            if filename in os.listdir(wallet_folder):
+                i += 1
+            else:
+                break
+        filename = line_dialog(None, _('New Wallet'), _('Enter file name') + ':', _('OK'), filename)
+        if not filename:
+            return
+        full_path = os.path.join(wallet_folder, filename)
+        storage = WalletStorage(full_path)
+        if storage.file_exists:
+            QMessageBox.critical(None, "Error", _("File exists"))
+            return
+        wizard = installwizard.InstallWizard(self.config, self.network, storage, self.app)
+        action, wallet_type = wizard.restore_or_create()
+        if not action:
+            return
+        wallet = wizard.run(action, wallet_type)
+        if wallet:
+            self.start_new_window(self.config, full_path)
+
+    def new_window(self, path):
         self.app.emit(SIGNAL('new_window'), self.config, path)
 
     def start_new_window(self, config, path=None):
         if path is None:
             path = config.get_wallet_path()
         for w in self.windows:
-            if w.config.get_wallet_path() == path:
-                w.setWindowState(w.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
-                w.activateWindow()
+            if w.wallet.storage.path == path:
+                w.bring_to_top()
                 break
         else:
+            wallet = self.load_wallet_file(path)
+            if not wallet:
+                return
             w = ElectrumWindow(config, self.network, self)
+            run_hook('new_window', w)
             w.connect_slots(self.timer)
-            w.load_wallet_file(path)
+            # load new wallet in gui
+            w.load_wallet(wallet)
+            # save path
+            if self.config.get('wallet_path') is None:
+                self.config.set_key('gui_last_wallet', path)
+            # add to recently visited
+            w.update_recently_visited(path)
             w.show()
             self.windows.append(w)
+            self.build_tray_menu()
 
  
         url = config.get('url')
         if url:
             w.pay_to_URI(url)
         return w
+
+    def close_window(self, window):
+        self.windows.remove(window)
+        self.build_tray_menu()
     
     def main(self):
         self.timer.start()
@@ -137,19 +243,11 @@ class ElectrumGui:
         if last_wallet is not None and self.config.get('wallet_path') is None:
             if os.path.exists(last_wallet):
                 self.config.cmdline_options['default_wallet_path'] = last_wallet
-        
-
-        # init tray
-        self.dark_icon = self.config.get("dark_icon", False)
-        icon = QIcon(":icons/electrum_dark_icon.png") if self.dark_icon else QIcon(':icons/electrum_light_icon.png')
-        self.tray = QSystemTrayIcon(icon, None)
-        self.tray.setToolTip('Electrum-XVG')
-        self.tray.activated.connect(self.tray_activated)
-        self.build_tray_menu()
-        self.tray.show()
 
         # main window
-        self.current_window = self.main_window = self.start_new_window(self.config)
+        self.main_window = self.start_new_window(self.config)
+        if not self.main_window:
+            return
 
         # plugins interact with main window
         run_hook('init_qt', self)

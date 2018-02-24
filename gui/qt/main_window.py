@@ -186,6 +186,19 @@ class ElectrumWindow(QMainWindow):
         self.require_fee_update = False
         self.tx_notifications = []
 
+    def is_hidden(self):
+        return self.isMinimized() or self.isHidden()
+
+    def show_or_hide(self):
+        if self.is_hidden():
+            self.bring_to_top()
+        else:
+            self.hide()
+
+    def bring_to_top(self):
+        self.show()
+        self.raise_()
+
     def register_callback(self, name, method):
         """ run callback in the qt thread """
         self.connect(self, QtCore.SIGNAL(name), method)
@@ -218,8 +231,8 @@ class ElectrumWindow(QMainWindow):
             self.account_selector.hide()
 
     def close_wallet(self):
-        print_error('close_wallet', self.config.get_wallet_path())
         if self.wallet:
+            print_error('close_wallet', self.wallet.storage.path)
             self.wallet.storage.put('accounts_expanded', self.accounts_expanded)
             self.wallet.stop_threads()
         run_hook('close_wallet')
@@ -290,79 +303,11 @@ class ElectrumWindow(QMainWindow):
             self.wallet.synchronize()
 
     def open_wallet(self):
-        wallet_folder = self.get_wallet_folder()
+        wallet_folder = self.gui_object.get_wallet_folder()
         filename = unicode(QFileDialog.getOpenFileName(self, "Select your wallet file", wallet_folder))
         if not filename:
             return
-        self.gui_object.load_wallet_file(filename)
-
-    def run_wizard(self, storage, action):
-        import installwizard
-        if storage.file_exists and action != 'new':
-            msg = _("The file '%s' contains an incompletely created wallet.")%storage.path + '\n'\
-                  + _("Do you want to complete its creation now?")
-            if not self.question(msg):
-                if self.question(_("Do you want to delete '%s'?")%storage.path):
-                    os.remove(storage.path)
-                    QMessageBox.information(self, _('Warning'), _('The file was removed'), _('OK'))
-                    return
-                return
-        wizard = installwizard.InstallWizard(self.config, self.network, storage, self)
-        wizard.show()
-        if action == 'new':
-            action, wallet_type = wizard.restore_or_create()
-        else:
-            wallet_type = None
-        try:
-            wallet = wizard.run(action, wallet_type)
-        except BaseException as e:
-            traceback.print_exc(file=sys.stdout)
-            QMessageBox.information(None, _('Error'), str(e), _('OK'))
-            return
-        return wallet
-
-    def load_wallet_file(self, filename):
-        try:
-            storage = WalletStorage(filename)
-        except Exception as e:
-            self.show_message(str(e))
-            return
-        if not storage.file_exists:
-            recent = self.config.get('recently_open', [])
-            if filename in recent:
-                recent.remove(filename)
-                self.config.set_key('recently_open', recent)
-            action = 'new'
-        else:
-            try:
-                wallet = Wallet(storage)
-            except BaseException as e:
-                traceback.print_exc(file=sys.stdout)
-                QMessageBox.warning(None, _('Warning'), str(e), _('OK'))
-                return
-            action = wallet.get_action()        
-        # run wizard
-        if action is not None:
-            self.tabs.hide()
-            wallet = self.run_wizard(storage, action)
-            if not wallet:
-                self.tabs.show()
-                return
-        else:
-            wallet.start_threads(self.network)
-        # close current wallet
-        self.close_wallet()
-        # load new wallet in gui
-        self.load_wallet(wallet)
-        # save path
-        if self.config.get('wallet_path') is None:
-            self.config.set_key('gui_last_wallet', filename)
-
-        self.update_recently_visited(filename)
-
-    def get_wallet_folder(self):
-        return os.path.dirname(os.path.abspath(self.wallet.storage.path if self.wallet else self.config.get_wallet_path()))
- 
+        self.gui_object.new_window(filename)
 
     def backup_wallet(self):
         path = self.wallet.storage.path
@@ -380,39 +325,6 @@ class ElectrumWindow(QMainWindow):
                 QMessageBox.critical(None,"Unable to create backup", _("Electrum was unable to copy your wallet file to the specified location.")+"\n" + str(reason))
 
 
-    def new_wallet(self):
-        import installwizard
-        wallet_folder = self.get_wallet_folder()
-        i = 1
-        while True:
-            filename = "wallet_%d"%i
-            if filename in os.listdir(wallet_folder):
-                i += 1
-            else:
-                break
-        filename = line_dialog(self, _('New Wallet'), _('Enter file name') + ':', _('OK'), filename)
-        if not filename:
-            return
-        full_path = os.path.join(wallet_folder, filename)
-        storage = WalletStorage(full_path)
-        if storage.file_exists:
-            QMessageBox.critical(None, "Error", _("File exists"))
-            return
-        self.tabs.hide()
-        wizard = installwizard.InstallWizard(self.config, self.network, storage, self)
-        action, wallet_type = wizard.restore_or_create()
-        if not action:
-            self.tabs.show()
-            return
-        # close current wallet, but keep a reference to it
-        self.close_wallet()
-        wallet = wizard.run(action, wallet_type)
-        if wallet:
-            self.load_wallet(wallet)
-        else:
-            self.wallet.start_threads(self.network)
-            self.load_wallet(self.wallet)
-
     def update_recently_visited(self, filename=None):
         recent = self.config.get('recently_open', [])
         if filename:
@@ -425,7 +337,7 @@ class ElectrumWindow(QMainWindow):
         for i, k in enumerate(sorted(recent)):
             b = os.path.basename(k)
             def loader(k):
-                return lambda: self.gui_object.load_wallet_file(k)
+                return lambda: self.gui_object.new_window(k)
             self.recently_visited_menu.addAction(b, loader(k)).setShortcut(QKeySequence("Ctrl+%d"%(i+1)))
         self.recently_visited_menu.setEnabled(len(recent))
 
@@ -435,7 +347,7 @@ class ElectrumWindow(QMainWindow):
         file_menu = menubar.addMenu(_("&File"))
         self.recently_visited_menu = file_menu.addMenu(_("&Recently open"))
         file_menu.addAction(_("&Open"), self.open_wallet).setShortcut(QKeySequence.Open)
-        file_menu.addAction(_("&New/Restore"), self.new_wallet).setShortcut(QKeySequence.New)
+        file_menu.addAction(_("&New/Restore"), self.gui_object.new_wallet).setShortcut(QKeySequence.New)
         file_menu.addAction(_("&Save Copy"), self.backup_wallet).setShortcut(QKeySequence.SaveAs)
         file_menu.addSeparator()
         file_menu.addAction(_("&Quit"), self.close)
@@ -555,7 +467,7 @@ class ElectrumWindow(QMainWindow):
         QMainWindow.close(self)
         self.close_wallet()
         run_hook('close_main_window')
-        self.gui_object.windows.remove(self)
+        self.gui_object.close_window(self)
 
     def connect_slots(self, sender):
         self.connect(sender, QtCore.SIGNAL('timersignal'), self.timer_actions)
@@ -1479,7 +1391,7 @@ class ElectrumWindow(QMainWindow):
             e.setFrozen(False)
         self.set_pay_from([])
         self.update_status()
-        run_hook('do_clear')
+        run_hook('do_clear', self)
 
     def set_frozen_state(self, addrs, freeze):
         self.wallet.set_frozen_state(addrs, freeze)
@@ -2342,7 +2254,7 @@ class ElectrumWindow(QMainWindow):
         text = text_dialog(self, _('Input raw transaction'), _("Transaction:"), _("Load transaction"))
         if not text:
             return
-        tx = self.tx_from_text(text)
+        tx = self.tx_from_text()
         if tx:
             self.show_transaction(tx)
 
@@ -2355,8 +2267,9 @@ class ElectrumWindow(QMainWindow):
         from electrum_xvg import transaction
         txid, ok = QInputDialog.getText(self, _('Lookup transaction'), _('Transaction ID') + ':')
         if ok and txid:
+            txid = str(txid).strip()
             try:
-                r = self.network.synchronous_get(('blockchain.transaction.get',[str(txid)]))
+                r = self.network.synchronous_get(('blockchain.transaction.get',[txid]))
             except BaseException as e:
                 self.show_message(str(e))
                 return

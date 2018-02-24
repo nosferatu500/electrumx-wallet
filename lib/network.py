@@ -249,7 +249,7 @@ class Network(util.DaemonThread):
         self.cached_responses = {}
         self.print_error('sending subscriptions to', self.interface.server, len(self.unanswered_requests), len(self.subscribed_addresses))
         for r in self.unanswered_requests.values():
-            self.interface.queue_request(r)
+            self.interface.queue_request(r[0])
         for addr in self.subscribed_addresses:
             self.interface.queue_request({'method':'blockchain.address.subscribe','params':[addr]})
         self.interface.queue_request({'method':'server.banner','params':[]})
@@ -499,8 +499,9 @@ class Network(util.DaemonThread):
                 break
             # Rewrite response shape to match subscription request response
             method = response.get('method')
+            params = response.get('params')
             if method == 'blockchain.headers.subscribe':
-                response['result'] = response['params'][0]
+                response['result'] = params[0]
                 response['params'] = []
             elif method == 'blockchain.address.subscribe':
                 response['params'] = [params[0]]  # addr

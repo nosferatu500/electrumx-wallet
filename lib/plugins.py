@@ -48,6 +48,13 @@ def is_available(name, w):
             return False
     return True
 
+def plugin_loader(config, name):
+    global plugins
+    if plugins.get(name) is None:
+        print_error(_("Loading plugin by constructor:"), name)
+        p = loader(name)
+        plugins[name] = p.Plugin(config, name)
+    return plugins[name]
 
 @profiler
 def init_plugins(config, is_local, gui_name):
@@ -60,20 +67,9 @@ def init_plugins(config, is_local, gui_name):
         electrum_plugins = __import__('electrum_xvg_plugins')
         loader = lambda name: __import__('electrum_xvg_plugins.' + name, fromlist=['electrum_xvg_plugins'])
 
-    def constructor(name, storage):
-        if plugins.get(name) is None:
-            try:
-                print_error(_("Loading plugin by constructor:"), name)
-                p = loader(name)
-                plugins[name] = p.Plugin(config, name)
-            except:
-                print_msg(_("Error: cannot initialize plugin"), name)
-                return
-        return plugins[name].constructor(storage)
-
-    def register_wallet_type(name, x, constructor):
+    def register_wallet_type(name, x):
         import wallet
-        x += (lambda storage: constructor(name, storage),)
+        x += (lambda: plugin_loader(config, name),)
         wallet.wallet_types.append(x)
 
     descriptions = electrum_plugins.descriptions
@@ -83,7 +79,7 @@ def init_plugins(config, is_local, gui_name):
             continue
         x = item.get('registers_wallet_type')
         if x:
-            register_wallet_type(name, x, constructor)
+            register_wallet_type(name, x)
         if not config.get('use_' + name):
             continue
         try:
