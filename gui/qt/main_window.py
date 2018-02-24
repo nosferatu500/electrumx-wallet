@@ -952,7 +952,7 @@ class ElectrumWindow(QMainWindow):
             requestor = req.get('name', '')
             amount_str = self.format_amount(amount) if amount else ""
             account = ''
-            item = QTreeWidgetItem([date, account, address, '', message, amount_str, pr_tooltips.get(status,'')])
+            item = EditableItem([date, account, address, '', message, amount_str, pr_tooltips.get(status,'')])
             if signature is not None:
                 item.setIcon(3, QIcon(":icons/seal.png"))
                 item.setToolTip(3, 'signed by '+ requestor)
@@ -1505,7 +1505,9 @@ class ElectrumWindow(QMainWindow):
         return self.create_list_tab(l)
 
     def create_contacts_tab(self):
-        l = MyTreeWidget(self, self.create_contact_menu, [_('Key'), _('Value'), _('Type')], 1)
+        l = MyTreeWidget(self, self.create_contact_menu, [_('Name'), _('Value'), _('Type')], 1, [0, 1])
+        l.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        l.item_edited = self.contact_edited
         self.contacts_list = l
         return self.create_list_tab(l)
 
@@ -1519,7 +1521,7 @@ class ElectrumWindow(QMainWindow):
             requestor = pr.get_requestor()
             exp = pr.get_expiration_date()
             date_str = util.format_time(exp) if exp else _('Never')
-            item = QTreeWidgetItem( [ date_str, requestor, pr.memo, self.format_amount(pr.get_amount(), whitespaces=True), pr_tooltips.get(status,'')] )
+            item = EditableItem([date_str, requestor, pr.memo, self.format_amount(pr.get_amount(), whitespaces=True), pr_tooltips.get(status,'')] )
             item.setIcon(4, QIcon(pr_icons.get(status)))
             item.setData(0, Qt.UserRole, key)
             item.setFont(1, QFont(MONOSPACE_FONT))
@@ -1636,36 +1638,65 @@ class ElectrumWindow(QMainWindow):
         self.tabs.setCurrentIndex(1)
         self.payto_e.paytomany()
 
-    def payto(self, addr):
-        if not addr:
-            return
+    def payto_contacts(self, labels):
+        paytos = [self.get_contact_payto(label) for label in labels]
         self.tabs.setCurrentIndex(1)
-        self.payto_e.setText(addr)
-        self.amount_e.setFocus()
+        if len(paytos) == 1:
+            self.payto_e.setText(paytos[0])
+            self.amount_e.setFocus()
+        else:
+            text = "\n".join([payto + ", 0" for payto in paytos])
+            self.payto_e.setText(text)
+            self.payto_e.setFocus()
 
-    def delete_contact(self, x):
-        if not self.question(_("Do you want to remove")+" %s "%x +_("from your list of contacts?")):
+    def contact_edited(self, item, column, prior):
+        if column == 0:  # Remove old contact if renamed
+            self.contacts.pop(prior)
+        self.set_contact(unicode(item.text(0)), unicode(item.text(1)))
+
+    def set_contact(self, label, address):
+        if not is_valid(address):
+            QMessageBox.warning(self, _('Error'), _('Invalid Address'), _('OK'))
+            self.update_contacts_tab()  # Displays original unchanged value
+            return False
+        self.contacts[label] = ('address', address)
+        self.update_contacts_tab()
+        self.update_history_tab()
+        self.update_completions()
+        return True
+
+    def delete_contacts(self, labels):
+        if not self.question(_("Remove %s from your list of contacts?")
+                             % " + ".join(labels)):
             return
-        self.contacts.pop(x)
+        for label in labels:
+            self.contacts.pop(label)
         self.update_history_tab()
         self.update_contacts_tab()
         self.update_completions()
 
     def create_contact_menu(self, position):
-        item = self.contacts_list.itemAt(position)
         menu = QMenu()
-        if not item:
+        selected = self.contacts_list.selectedItems()
+        if not selected:
             menu.addAction(_("New contact"), lambda: self.new_contact_dialog())
         else:
-            key = unicode(item.text(0))
-            menu.addAction(_("Copy to Clipboard"), lambda: self.app.clipboard().setText(key))
-            menu.addAction(_("Pay to"), lambda: self.payto(self.get_contact_payto(key)))
-            menu.addAction(_("Delete"), lambda: self.delete_contact(key))
-            addr_URL = block_explorer_URL(self.config, 'addr', unicode(item.text(1)))
-            if addr_URL:
-                menu.addAction(_("View on block explorer"), lambda: webbrowser.open(addr_URL))
+            labels = [unicode(item.text(0)) for item in selected]
+            addrs = [unicode(item.text(1)) for item in selected]
+            types = [unicode(item.text(2)) for item in selected]
+            menu.addAction(_("Copy to Clipboard"), lambda:
+                           self.app.clipboard().setText('\n'.join(labels)))
+            menu.addAction(_("Pay to"), lambda: self.payto_contacts(labels))
+            menu.addAction(_("Delete"), lambda: self.delete_contacts(labels))
+            URLs = []
+            for (addr, _type) in zip(addrs, types):
+                if _type == 'address':
+                    URLs.append(block_explorer_URL(self.config, 'addr', addr))
+            if URLs:
+                menu.addAction(_("View on block explorer"),
+                               lambda: map(webbrowser.open, URLs))
 
-        run_hook('create_contact_menu', menu, item)
+        run_hook('create_contact_menu', menu, selected)
         menu.exec_(self.contacts_list.viewport().mapToGlobal(position))
 
 
@@ -1770,7 +1801,7 @@ class ElectrumWindow(QMainWindow):
                     label = self.wallet.labels.get(address,'')
                     c, u, x = self.wallet.get_addr_balance(address)
                     balance = self.format_amount(c + u + x)
-                    item = QTreeWidgetItem( [ address, label, balance, "%d"%num] )
+                    item = EditableItem([address, label, balance, "%d"%num])
                     item.setFont(0, QFont(MONOSPACE_FONT))
                     item.setData(0, Qt.UserRole, address)
                     item.setData(0, Qt.UserRole+1, True) # label can be edited
@@ -1796,7 +1827,10 @@ class ElectrumWindow(QMainWindow):
         l.clear()
         for key in sorted(self.contacts.keys()):
             _type, value = self.contacts[key]
-            item = QTreeWidgetItem([key, value, _type])
+            if _type == 'address':
+                item = EditableItem([key, value, _type])
+            else: # openalias items shouldn't be editable
+                item = QTreeWidgetItem([key, value, _type])
             item.setData(0, Qt.UserRole, key)
             l.addTopLevelItem(item)
             if key == current_key:
@@ -1922,7 +1956,9 @@ class ElectrumWindow(QMainWindow):
         vbox.addWidget(QLabel(_('New Contact') + ':'))
         grid = QGridLayout()
         line1 = QLineEdit()
+        line1.setFixedWidth(280)
         line2 = QLineEdit()
+        line2.setFixedWidth(280)
         grid.addWidget(QLabel(_("Address")), 1, 0)
         grid.addWidget(line1, 1, 1)
         grid.addWidget(QLabel(_("Name")), 2, 0)
@@ -1934,20 +1970,8 @@ class ElectrumWindow(QMainWindow):
         if not d.exec_():
             return
 
-        address = str(line1.text())
-        label = unicode(line2.text())
-
-        if not is_valid(address):
-            QMessageBox.warning(self, _('Error'), _('Invalid Address'), _('OK'))
-            return
-
-        self.contacts[label] = ('address', address)
-
-        self.update_contacts_tab()
-        self.update_history_tab()
-        self.update_completions()
-        self.tabs.setCurrentIndex(3)
-
+        if self.set_contact(unicode(line2.text()), str(line1.text())):
+            self.tabs.setCurrentIndex(4)
 
     @protected
     def new_account_dialog(self, password):
