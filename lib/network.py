@@ -229,11 +229,11 @@ class Network(util.DaemonThread):
         for r in self.unanswered_requests.values():
             self.interface.queue_request(r)
         for addr in self.subscribed_addresses:
-            self.interface.queue_request({'blockchain.address.subscribe',[addr]})
-        self.interface.queue_request({'server.banner',[]})
-        self.interface.queue_request({'server.peers.subscribe',[]})
+            self.interface.queue_request({'method':'blockchain.address.subscribe','params':[addr]})
+        self.interface.queue_request({'method':'server.banner','params':[]})
+        self.interface.queue_request({'method':'server.peers.subscribe','params':[]})
         # TODO: This param freeze wallet if network Dialog is open
-        # self.interface.send_request({blockchain.estimatefee',[2]})
+        # self.interface.queue_request({'method':'blockchain.estimatefee','params':[2]})
 
     def get_status_value(self, key):
         if key == 'status':
