@@ -13,7 +13,7 @@ import logging
 
 class ElectrumGui:
 
-    def __init__(self, config, network):
+    def __init__(self, config, network, plugins):
         self.network = network
         self.config = config
         storage = WalletStorage(config.get_wallet_path())

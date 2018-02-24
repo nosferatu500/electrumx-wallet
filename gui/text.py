@@ -13,7 +13,7 @@ import logging
 
 class ElectrumGui:
 
-    def __init__(self, config, network):
+    def __init__(self, config, network, plugins):
 
         self.config = config
         self.network = network

@@ -1285,7 +1285,7 @@ class ElectrumWindow:
 
 class ElectrumGui():
 
-    def __init__(self, config, network):
+    def __init__(self, config, network, plugins):
         self.network = network
         self.config = config
 

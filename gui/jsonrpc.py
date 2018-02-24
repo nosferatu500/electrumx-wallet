@@ -31,7 +31,7 @@ from electrum_xvg.commands import known_commands, Commands
 
 class ElectrumGui:
 
-    def __init__(self, config, network):
+    def __init__(self, config, network, plugins):
         self.network = network
         self.config = config
         storage = WalletStorage(self.config.get_wallet_path())
