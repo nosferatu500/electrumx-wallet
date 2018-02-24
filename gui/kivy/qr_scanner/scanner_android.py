@@ -170,6 +170,7 @@ class AndroidCamera(Widget):
 
     @run_on_ui_thread
     def stop(self):
+        self.running = False
         if self._android_camera is None:
             return
         self._android_camera.setPreviewCallback(None)
@@ -179,6 +180,7 @@ class AndroidCamera(Widget):
 
     @run_on_ui_thread
     def start(self):
+        self.running = True
         if self._android_camera is not None:
             return
 
@@ -195,6 +197,8 @@ class AndroidCamera(Widget):
 
         # attach the android surfaceview to our android widget holder
         self._holder.view = self._android_surface
+
+        self._android_camera.setDisplayOrientation(90)
 
     def _on_surface_changed(self, fmt, width, height):
         # internal, called when the android SurfaceView is ready

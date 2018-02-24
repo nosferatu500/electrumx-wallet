@@ -9,7 +9,7 @@ apk:
 	# running pre build setup
 	@cp tools/buildozer.spec ../../buildozer.spec
 	# rename electrum to main.py
-	@mv ../../electrum-xvg ../../main.py
+	@cp ../../electrum-xvg ../../main.py
 	@-if [ ! -d "../../.buildozer" ];then \
 		cd ../..; buildozer android debug;\
 		cp -f gui/kivy/tools/blacklist.txt .buildozer/android/platform/python-for-android/src/blacklist.txt;\
