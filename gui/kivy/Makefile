@@ -19,8 +19,6 @@ apk:
 	@make clean
 clean:
 	# Cleaning up
-	# remove aes
-	@-rm ../../aes.py
 	# rename main.py to electrum
 	@-mv ../../main.py ../../electrum-xvg
 	# remove buildozer.spec
