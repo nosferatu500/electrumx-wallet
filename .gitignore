@@ -1,6 +1,7 @@
 ####-*.patch
 gui/icons_rc.py
 lib/icons_rc.py
+.buildozer/
 *.pyc
 *.swp
 build/
