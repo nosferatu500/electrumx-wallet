@@ -93,6 +93,8 @@ class InstallWizard(QDialog):
         grid.setSpacing(5)
         gb1 = QGroupBox(_("What do you want to do?"))
         vbox.addWidget(gb1)
+        vbox1 = QVBoxLayout()
+        gb1.setLayout(vbox1)
         b1 = QRadioButton(gb1)
         b1.setText(_("Create new wallet"))
         b1.setChecked(True)
@@ -101,11 +103,13 @@ class InstallWizard(QDialog):
         group1 = QButtonGroup()
         group1.addButton(b1)
         group1.addButton(b2)
-        vbox.addWidget(b1)
-        vbox.addWidget(b2)
+        vbox1.addWidget(b1)
+        vbox1.addWidget(b2)
 
         gb2 = QGroupBox(_("Wallet type:"))
         vbox.addWidget(gb2)
+        vbox2 = QVBoxLayout()
+        gb2.setLayout(vbox2)
         group2 = QButtonGroup()
 
         self.wallet_types = [
@@ -120,7 +124,7 @@ class InstallWizard(QDialog):
                 continue
             button = QRadioButton(gb2)
             button.setText(name)
-            vbox.addWidget(button)
+            vbox2.addWidget(button)
             group2.addButton(button)
             group2.setId(button, i)
             if i==0:
@@ -326,11 +330,13 @@ class InstallWizard(QDialog):
         vbox.addWidget(QLabel(title))
         gb2 = QGroupBox(msg)
         vbox.addWidget(gb2)
+        vbox2 = QVBoxLayout()
+        gb2.setLayout(vbox2)
         group2 = QButtonGroup()
         for i,c in enumerate(choices):
             button = QRadioButton(gb2)
             button.setText(c[1])
-            vbox.addWidget(button)
+            vbox2.addWidget(button)
             group2.addButton(button)
             group2.setId(button, i)
             if i==0:

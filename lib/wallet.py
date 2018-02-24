@@ -38,7 +38,7 @@ from version import *
 from transaction import Transaction
 from plugins import run_hook
 import bitcoin
-from synchronizer import WalletSynchronizer
+from synchronizer import Synchronizer
 from mnemonic import Mnemonic
 
 import paymentrequest
@@ -1086,9 +1086,7 @@ class Abstract_Wallet(object):
             return True
         return False
 
-    def set_verifier(self, verifier):
-        self.verifier = verifier
-
+    def prepare_for_verifier(self):
         # review transactions that are in the history
         for addr, hist in self.history.items():
             for tx_hash, tx_height in hist:
@@ -1108,20 +1106,21 @@ class Abstract_Wallet(object):
         self.network = network
         logging.warn(network)
         if self.network is not None:
+            self.prepare_for_verifier()
             self.verifier = SPV(self.network, self)
-            self.verifier.start()
-            self.set_verifier(self.verifier)
-            self.synchronizer = WalletSynchronizer(self, network)
-            network.jobs.append(self.synchronizer.main_loop)
+            network.add_job(self.verifier)
+            self.synchronizer = Synchronizer(self, network)
+            network.add_job(self.synchronizer)
         else:
             self.verifier = None
             self.synchronizer = None
 
     def stop_threads(self):
         if self.network:
-            self.verifier.stop()
-            self.network.jobs.remove(self.synchronizer.main_loop)
+            self.network.remove_job(self.synchronizer)
+            self.network.remove_job(self.verifier)
             self.synchronizer = None
+            self.verifier = None
             self.storage.put('stored_height', self.get_local_height(), True)
 
     def restore(self, cb):
